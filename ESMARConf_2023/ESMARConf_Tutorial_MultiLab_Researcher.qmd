@@ -1,0 +1,206 @@
+---
+title: "Esmarconf - Ego Depletion"
+format: html
+editor: "Lukas Beinhauer - Professor Snugglewums"
+---
+
+# Ego Depletion
+
+The effect of ego depletion refers to the observation that an active exercise and directon of self-control leads to an impairment in controlling one's own behaviour subsequently.
+
+Several multi-site studies have been attempting to define conditions under which the effect can be steadily replicated. The study by Dang et al. (2021) is one of such studies. In 12 labs, researchers followed the same protocol, dividing the sample into treatment (depletion condition) and control groups. In both conditions, participants completed a Stroop task, the Stroop-task for the depletion condition required a larger degree of self-control (The ratio of incongruent to congruent trials was substantially larger, compared to the control group). Subsequently, both groups completed the antisaccadetask, which asks participants to quickly identify specific letters and react with correct button presses. 
+
+## Download Data 
+In order to follow the steps of this tutorial, please download the lab data from the project by Dang et al. (2021) from their OSF-repository: https://osf.io/3txav/ 
+
+## Using MetaPipeX
+
+Imagine, we collected this data and want to use the MetaPipeX framework to perform a meta-analysis across data from the 12 separate labs. The labs provided us with separate SPSS data-files (.sav)
+
+In order to install the MetaPipeX-package and load the .sav data files, we need to install and load two additional packages: haven and devtools
+
+### Loading relevant libraries
+
+```{r}
+# Library Loading
+
+packages <- c("haven", "devtools", "osfr")
+
+# check, whether library already installed or not - install and load as needed:
+apply(as.matrix(packages), MARGIN = 1, FUN = function(x) {
+  
+  pkg_avail <- nzchar(system.file(package = x))   # check if library is installed on system
+  
+  if(pkg_avail){
+    require(x, character.only = TRUE)             # load the library, if already installed
+    
+  }else{
+    install.packages(x)                           # install the library, if missing
+    require(x, character.only = TRUE)             # load after installation
+  }
+})
+```
+
+### Installing MetaPipeX from GitHub
+
+After these additional packages are installed, we can use devtools to install the MetaPipeX package from Fünderich's GitHub repository.
+
+```{r}
+# installing MetaPipeX
+
+devtools::install_github("https://github.com/JensFuenderich/MetaPipeX/tree/main/R-Package"
+                         , force = TRUE
+                         )
+
+library(MetaPipeX)
+```
+
+### Loading Ego Depletion Replication Data
+
+After all installations are done and packages are loaded, we can get started. Initially, we want to simply load the separate .sav files.
+
+```{r}
+## Loading Data
+
+# identify the paths to the lab data files
+paths <- list.files(file.path("Data/")
+                    , pattern = "*.sav$"
+                    , full.names = TRUE
+                    )
+
+
+# using an lapply-function, we loop across the paths and load the
+ # data for the separate paths, uing the haven-package
+data.L <- lapply(paths[-1], FUN = function(x){
+  
+  # load each data set, iteratively
+  dat <- haven::read_sav(file.path(x))
+  
+  # add columns to data.frames, containing information on which MultiLab project
+   # we are dealing with (Dang et al.), which effect is replicated (Ego Depletion)
+   # and which replication we just loaded (lab)
+  dat$MultiLab <- "Dang et al."
+  dat$ReplicationProject <- "Ego Depletion"
+  dat$Replication <- x
+  
+  # return the loaded and newly formatted data file
+  return(dat)
+})
+
+# lapply loads the different data sets in a list
+ # MetaPipeX can deal with data sets in lists, but if you prefer a single
+ # data frame or completely separate files, this works as well.
+
+
+```
+
+### Generating standardizes summaries of lab-data
+
+After the data is loaded, we can get started with the MetaPipeX package!
+
+The first function, <create_replication_summaries> is used to generate aggregates of the dependent variable, for the separate groups in the different labs. This means, in this case, it will produce 12 different estimates for relevant parameters in both groups.
+
+for each condition separately:
+
+-   12 Mean values (+ standard error)
+-   12 standard deviations (+standard error)
+
+for both conditions:
+
+-   12 mean differences (+ standard error)
+-   12 pooled standard deviations (+ standard error)
+-   12 standardized mean differences - Hedge's g (+ standard error)
+
+When using MetaPipeX here, it is important to "tell" the function, which variable contains information on the grouping variable (here "Condition") and which variable contains information on the dependent variable (here "error_rate"). Since we previously defined the variables "MultiLab", "Replication" and "ReplicationProject", we do not need to additionally state them here. Had we not done that, we would need to specify which variable contain these informations (or add them to the data.frame here the latest).
+
+We will print the estimates only for the first lab here.
+
+```{r}
+# Summarize Replication data
+
+# use MetaPipeX function
+summarised_data <- MetaPipeX::create_replication_summaries(data = data.L
+                                                           
+                                        # specify grouping variable
+                                        , Group = "Condition"
+                                        
+                                        
+                                        # specify dependent variable
+                                        , DV = "error_rate"
+                                        )
+
+# print results for lab 1
+summarised_data$Replication_Summaries[[1]]
+
+
+```
+
+### Combining these aggregates across labs
+
+Subsequently, we want to compare the aggregate estimates across labs, in order to prepare for a meta-analysis. In MetaPipeX, we use the function <merge_replication_summaries>.
+
+This function takes the output generated by the <create_replication_summaries> function and automatically merges the elements from the previous step in a single data.frame. No additional arguments are required, though you could choose to save the results in a separate.csv file.
+
+```{r}
+# Merge Replication Summaries
+
+# use MetaPipeX function
+merged_summaries <- MetaPipeX::merge_replication_summaries(
+  data = summarised_data$Replication_Summaries)
+
+# print resulting data.frame
+merged_summaries$Merged_Replication_Summaries
+
+
+```
+
+### Performing a random-effects meta-analysis using MetaPipeX and metafor on mean differences and standardized mean differences
+
+After combining the aggregates in a single data.frame, we can use MetaPipeX to automatically perform multiple meta-analyses! In Psychology, most commonly we would look at a meta-analysis of standardized mean differences (SMDs). However, as SMDs consist of multiple sub-components (mean difference and pooled standard deviation), it should be interesting and valuable to look at those components as well.
+
+MetaPipeX automatically performs random-effects meta-analyses according to Hedges (XXX) using the metafor packages (Viechtbauer, XXX). Such analyses are performed for all aggregates collected using the <create_replicaton_summaries> function. The function automatically returns typcial values resulting from a random-effects meta-analysis.
+
+Parameters returned for heterogeneity in Mean Differences and SMD:
+
+-   heterogeneity in terms of variance / standard deviation (tau\^2 and tau)
+-   heterogeneity in terms of explained variance (I\^2, H\^2)
+-   heterogeneity in terms of ratio mean estimate to heterogeneity (coefficient of variation)
+-   test statistic QE, including its p-value
+
+```{r}
+# meta analyses
+
+# 
+meta_analysed_ED <- MetaPipeX::meta_analyses(
+  data = merged_summaries$Merged_Replication_Summaries)
+
+meta_analysed_ED$Meta_Analyses
+meta_analysed_ED$codebook_for_meta_analyses
+
+```
+
+Thereby, we have easily performed meta-analyses for SMDs and similar constructs, on multi-site replication data in an experimental two-group setting.
+
+### Doing it all at once!
+
+While this was a sensible exercise for you to understand what the different steps in MetaPipeX are, we can automate the steps taken with the package-functions, in a single function!
+
+Using the <full_pipeline> command, we can aggregate the data for each lab, combine those summaries and perform the random-effects meta-analyses in a single step! All we have to do is enter the data and variables, just like in the <create_replication_summaries> command:
+
+```{r}
+
+meta_analyses_ED.FullPipe <- full_pipeline(data = data.L
+                                                           
+                                        # specify grouping variable
+                                        , Group = "Condition"
+                                        
+                                        
+                                        # specify dependent variable
+                                        , DV = "error_rate")
+
+meta_analyses_ED.FullPipe$`2_Replication_Summaries`$Replication_Summaries[[1]]
+meta_analyses_ED.FullPipe$`3_Merged_Replication_Summaries`$Merged_Replication_Summaries
+meta_analyses_ED.FullPipe$`4_Meta_Analyses`$Meta_Analyses
+
+
+```
