@@ -11,7 +11,7 @@ The effect of ego depletion refers to the observation that an active exercise an
 Several multi-site studies have been attempting to define conditions under which the effect can be steadily replicated. The study by Dang et al. (2021) is one of such studies. In 12 labs, researchers followed the same protocol, dividing the sample into treatment (depletion condition) and control groups. In both conditions, participants completed a Stroop task, the Stroop-task for the depletion condition required a larger degree of self-control (The ratio of incongruent to congruent trials was substantially larger, compared to the control group). Subsequently, both groups completed the antisaccadetask, which asks participants to quickly identify specific letters and react with correct button presses. 
 
 ## Download Data 
-In order to follow the steps of this tutorial, please download the lab data from the project by Dang et al. (2021) from their OSF-repository: https://osf.io/3txav/ 
+In order to follow the steps of this tutorial, please download the data (.zip file) from the project by Dang et al. (2021) from their OSF-repository: https://osf.io/3txav/ 
 
 ## Using MetaPipeX
 
